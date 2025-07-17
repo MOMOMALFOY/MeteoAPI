@@ -357,4 +357,16 @@ async def get_point_climate_data(request: Request, lat: float = Query(...), lon:
             return {"error": True, "reason": "No climate data for this location"}
         resp.raise_for_status()
         data = resp.json()
-    return data 
+    return data
+
+@app.get("/station/search", tags=["Stations"])
+async def search_station_by_name(request: Request, name: str = Query(..., description="City or station name to search")):
+    await verify_rapidapi_proxy(request)
+    name_lower = name.lower()
+    results = [
+        {"id": s["id"], "name": s["name"], "country": s["country"], "lat": s["lat"], "lon": s["lon"]}
+        for s in STATIONS if name_lower in s["name"].lower()
+    ]
+    if not results:
+        raise HTTPException(status_code=404, detail="No station found for this name")
+    return results 
