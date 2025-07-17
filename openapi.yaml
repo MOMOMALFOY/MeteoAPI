@@ -1,0 +1,413 @@
+openapi: 3.0.3
+info:
+  title: MeteoAPI
+  version: '1.0.0'
+  description: |
+    API météo basée sur Open-Meteo, permettant d'obtenir la météo actuelle, l'historique, les prévisions et la climatologie pour des points géographiques ou des villes majeures du monde. Toutes les données sont issues en temps réel d'Open-Meteo.
+    
+    - Les endpoints `/station/*` utilisent les coordonnées de la station pour interroger Open-Meteo.
+    - Les endpoints `/point/*` permettent d'obtenir la météo pour n'importe quel point (lat/lon).
+    - L'API ne nécessite pas de clé.
+    - Les réponses sont au format JSON.
+servers:
+  - url: http://localhost:8000
+paths:
+  /current:
+    get:
+      summary: Météo actuelle
+      description: >
+        Retourne la météo actuelle (dernière heure disponible) pour une station (ID) ou un point géographique (lat/lon).
+      parameters:
+        - in: query
+          name: station
+          schema:
+            type: string
+          description: ID de la station (ex: FRPAR, USNYC)
+        - in: query
+          name: lat
+          schema:
+            type: number
+            format: float
+          description: Latitude du point (si pas de station)
+        - in: query
+          name: lon
+          schema:
+            type: number
+            format: float
+          description: Longitude du point (si pas de station)
+      responses:
+        '200':
+          description: Données météo actuelle
+          content:
+            application/json:
+              example:
+                time: "2024-06-10T14:00:00Z"
+                temperature_2m: 22.5
+                precipitation: 0.0
+                relative_humidity_2m: 60
+                wind_speed_10m: 12.0
+        '400':
+          description: Paramètres manquants
+        '404':
+          description: Station inconnue
+        '502':
+          description: Erreur Open-Meteo
+  /history:
+    get:
+      summary: Historique météo
+      description: >
+        Retourne les données météo historiques pour une station (ID) ou un point géographique à une date donnée (format YYYY-MM-DD).
+      parameters:
+        - in: query
+          name: station
+          schema:
+            type: string
+          description: ID de la station (ex: FRPAR, USNYC)
+        - in: query
+          name: lat
+          schema:
+            type: number
+            format: float
+          description: Latitude du point (si pas de station)
+        - in: query
+          name: lon
+          schema:
+            type: number
+            format: float
+          description: Longitude du point (si pas de station)
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+          required: true
+          description: Date recherchée (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Données météo historiques (daily)
+          content:
+            application/json:
+              example:
+                daily:
+                  time: ["2024-06-09"]
+                  temperature_2m_max: [22.0]
+                  temperature_2m_min: [14.0]
+                  precipitation_sum: [0.0]
+                  wind_speed_10m_max: [15.0]
+        '400':
+          description: Paramètres manquants
+        '404':
+          description: Station inconnue
+        '502':
+          description: Erreur Open-Meteo
+  /forecast:
+    get:
+      summary: Prévisions météo
+      description: >
+        Retourne les prévisions météo (prochains jours) pour une station (ID) ou un point géographique.
+      parameters:
+        - in: query
+          name: station
+          schema:
+            type: string
+          description: ID de la station (ex: FRPAR, USNYC)
+        - in: query
+          name: lat
+          schema:
+            type: number
+            format: float
+          description: Latitude du point (si pas de station)
+        - in: query
+          name: lon
+          schema:
+            type: number
+            format: float
+          description: Longitude du point (si pas de station)
+        - in: query
+          name: days
+          schema:
+            type: integer
+            default: 7
+          description: Nombre de jours de prévision (max 16)
+      responses:
+        '200':
+          description: Données météo prévisionnelles (daily)
+          content:
+            application/json:
+              example:
+                daily:
+                  time: ["2024-06-10", "2024-06-11"]
+                  temperature_2m_max: [24.0, 25.0]
+                  temperature_2m_min: [15.0, 16.0]
+                  precipitation_sum: [0.0, 0.2]
+                  wind_speed_10m_max: [12.0, 14.0]
+        '400':
+          description: Paramètres manquants
+        '404':
+          description: Station inconnue
+        '502':
+          description: Erreur Open-Meteo
+  /stations:
+    get:
+      summary: Liste des stations
+      description: Retourne la liste des stations météo connues (villes majeures, coordonnées, pays).
+      parameters:
+        - in: query
+          name: country
+          schema:
+            type: string
+          description: Filtrer par code pays (ex: FR, US, GB)
+      responses:
+        '200':
+          description: Liste des stations
+          content:
+            application/json:
+              example:
+                - id: FRPAR
+                  name: Paris
+                  country: FR
+                  lat: 48.8566
+                  lon: 2.3522
+                - id: USNYC
+                  name: New York
+                  country: US
+                  lat: 40.7128
+                  lon: -74.0060
+  /station/hourly:
+    get:
+      summary: Données horaires d'une station
+      description: Retourne les données horaires Open-Meteo pour la position de la station (ID).
+      parameters:
+        - in: query
+          name: station
+          schema:
+            type: string
+          required: true
+          description: ID de la station (ex: FRPAR, USNYC)
+      responses:
+        '200':
+          description: Données horaires Open-Meteo (voir doc officielle)
+        '404':
+          description: Station inconnue
+        '502':
+          description: Erreur Open-Meteo
+  /station/daily:
+    get:
+      summary: Données journalières d'une station
+      description: Retourne les données journalières Open-Meteo pour la position de la station (ID).
+      parameters:
+        - in: query
+          name: station
+          schema:
+            type: string
+          required: true
+          description: ID de la station (ex: FRPAR, USNYC)
+      responses:
+        '200':
+          description: Données journalières Open-Meteo (voir doc officielle)
+        '404':
+          description: Station inconnue
+        '502':
+          description: Erreur Open-Meteo
+  /station/monthly:
+    get:
+      summary: Données mensuelles d'une station
+      description: Retourne les données mensuelles (daily) Open-Meteo pour la position de la station (ID).
+      parameters:
+        - in: query
+          name: station
+          schema:
+            type: string
+          required: true
+          description: ID de la station (ex: FRPAR, USNYC)
+      responses:
+        '200':
+          description: Données mensuelles Open-Meteo (voir doc officielle)
+        '404':
+          description: Station inconnue
+        '502':
+          description: Erreur Open-Meteo
+  /station/climate:
+    get:
+      summary: Climatologie d'une station
+      description: Retourne la climatologie Open-Meteo pour la position de la station (ID).
+      parameters:
+        - in: query
+          name: station
+          schema:
+            type: string
+          required: true
+          description: ID de la station (ex: FRPAR, USNYC)
+      responses:
+        '200':
+          description: Données climatologiques Open-Meteo (voir doc officielle)
+        '404':
+          description: Station inconnue
+        '502':
+          description: Erreur Open-Meteo
+  /station/meta:
+    get:
+      summary: Métadonnées d'une station
+      description: Retourne les métadonnées (nom, pays, coordonnées) d'une station.
+      parameters:
+        - in: query
+          name: station
+          schema:
+            type: string
+          required: true
+          description: ID de la station (ex: FRPAR, USNYC)
+      responses:
+        '200':
+          description: Métadonnées de la station
+          content:
+            application/json:
+              example:
+                id: FRPAR
+                name: Paris
+                country: FR
+                lat: 48.8566
+                lon: 2.3522
+        '404':
+          description: Station inconnue
+  /station/nearby:
+    get:
+      summary: Stations proches d'un point
+      description: Retourne la liste des stations les plus proches d'un point géographique (lat/lon).
+      parameters:
+        - in: query
+          name: lat
+          schema:
+            type: number
+            format: float
+          required: true
+          description: Latitude du point
+        - in: query
+          name: lon
+          schema:
+            type: number
+            format: float
+          required: true
+          description: Longitude du point
+      responses:
+        '200':
+          description: Liste des stations proches
+          content:
+            application/json:
+              example:
+                - id: FRPAR
+                  name: Paris
+                  country: FR
+                  lat: 48.8566
+                  lon: 2.3522
+                - id: FRLYO
+                  name: Lyon
+                  country: FR
+                  lat: 45.75
+                  lon: 4.85
+  /point/hourly:
+    get:
+      summary: Données horaires pour un point
+      description: Retourne les données horaires Open-Meteo pour un point géographique (lat/lon).
+      parameters:
+        - in: query
+          name: lat
+          schema:
+            type: number
+            format: float
+          required: true
+          description: Latitude du point
+        - in: query
+          name: lon
+          schema:
+            type: number
+            format: float
+          required: true
+          description: Longitude du point
+      responses:
+        '200':
+          description: Données horaires Open-Meteo (voir doc officielle)
+        '502':
+          description: Erreur Open-Meteo
+  /point/daily:
+    get:
+      summary: Données journalières pour un point
+      description: Retourne les données journalières Open-Meteo pour un point géographique (lat/lon).
+      parameters:
+        - in: query
+          name: lat
+          schema:
+            type: number
+            format: float
+          required: true
+          description: Latitude du point
+        - in: query
+          name: lon
+          schema:
+            type: number
+            format: float
+          required: true
+          description: Longitude du point
+      responses:
+        '200':
+          description: Données journalières Open-Meteo (voir doc officielle)
+        '502':
+          description: Erreur Open-Meteo
+  /point/monthly:
+    get:
+      summary: Données mensuelles pour un point
+      description: Retourne les données mensuelles (daily) Open-Meteo pour un point géographique (lat/lon).
+      parameters:
+        - in: query
+          name: lat
+          schema:
+            type: number
+            format: float
+          required: true
+          description: Latitude du point
+        - in: query
+          name: lon
+          schema:
+            type: number
+            format: float
+          required: true
+          description: Longitude du point
+      responses:
+        '200':
+          description: Données mensuelles Open-Meteo (voir doc officielle)
+        '502':
+          description: Erreur Open-Meteo
+  /point/climate:
+    get:
+      summary: Climatologie pour un point
+      description: Retourne la climatologie Open-Meteo pour un point géographique (lat/lon).
+      parameters:
+        - in: query
+          name: lat
+          schema:
+            type: number
+            format: float
+          required: true
+          description: Latitude du point
+        - in: query
+          name: lon
+          schema:
+            type: number
+            format: float
+          required: true
+          description: Longitude du point
+      responses:
+        '200':
+          description: Données climatologiques Open-Meteo (voir doc officielle)
+        '502':
+          description: Erreur Open-Meteo
+  /ping:
+    get:
+      summary: Vérification de disponibilité
+      description: Retourne un statut "ok" si l'API est disponible.
+      responses:
+        '200':
+          description: Statut OK
+          content:
+            application/json:
+              example:
+                status: ok 

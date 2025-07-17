@@ -2,6 +2,7 @@ from fastapi import FastAPI, Query, HTTPException, Request, Body
 from typing import List, Optional
 from pydantic import BaseModel
 import httpx
+from stations import STATIONS
 
 app = FastAPI(
     title="MeteoAPI",
@@ -82,61 +83,100 @@ class StationMeta(BaseModel):
     lon: float
     elevation: float
 
-# Données simulées
-STATIONS = [
-    Station(id="FRPAR", name="Paris", country="FR", region="Île-de-France", lat=48.8566, lon=2.3522),
-    Station(id="FRLYS", name="Lyon", country="FR", region="Auvergne-Rhône-Alpes", lat=45.75, lon=4.85)
-]
-
-CURRENT_WEATHER = [
-    WeatherCurrent(station="FRPAR", temperature=22.5, humidity=60, wind_speed=12.0, condition="Ensoleillé", time="2024-06-10T14:00:00Z"),
-    WeatherCurrent(station="FRLYS", temperature=20.0, humidity=65, wind_speed=10.0, condition="Nuageux", time="2024-06-10T14:00:00Z")
-]
-
-HISTORY = [
-    WeatherHistory(station="FRPAR", date="2024-06-09", temperature_avg=18.0, temperature_min=14.0, temperature_max=22.0, precipitation=0.0),
-    WeatherHistory(station="FRLYS", date="2024-06-09", temperature_avg=17.0, temperature_min=13.0, temperature_max=21.0, precipitation=1.2)
-]
-
-FORECAST = [
-    WeatherForecast(station="FRPAR", date="2024-06-11", temperature_min=15.0, temperature_max=24.0, precipitation=0.0, condition="Ensoleillé"),
-    WeatherForecast(station="FRLYS", date="2024-06-11", temperature_min=14.0, temperature_max=22.0, precipitation=0.5, condition="Pluie")
-]
-
 # Vérification proxy RapidAPI
 async def verify_rapidapi_proxy(request: Request):
     if not (request.headers.get("x-rapidapi-host") or request.headers.get("x-rapidapi-user")):
         raise HTTPException(status_code=401, detail="Accès uniquement via le proxy RapidAPI.")
 
 # Helper pour trouver les coordonnées d'une station
-station_coords = {s.id: (s.lat, s.lon) for s in STATIONS}
+station_coords = {s["id"]: (s["lat"], s["lon"]) for s in STATIONS}
 
 # Endpoints
-@app.get("/current", response_model=List[WeatherCurrent], tags=["Current"])
-async def get_current_weather(request: Request, station: Optional[str] = Query(None)):
+@app.get("/current", tags=["Current"])
+async def get_current_weather(request: Request, station: Optional[str] = None, lat: Optional[float] = None, lon: Optional[float] = None):
     await verify_rapidapi_proxy(request)
     if station:
-        return [w for w in CURRENT_WEATHER if w.station == station]
-    return CURRENT_WEATHER
+        coords = station_coords.get(station)
+        if not coords:
+            raise HTTPException(status_code=404, detail="Station inconnue")
+        lat, lon = coords
+    if lat is None or lon is None:
+        raise HTTPException(status_code=400, detail="Paramètres manquants (station ou lat/lon)")
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": "temperature_2m,precipitation,relative_humidity_2m,wind_speed_10m",
+        "timezone": "auto"
+    }
+    async with httpx.AsyncClient() as client:
+        r = await client.get(OPEN_METEO_BASE, params=params)
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail="Erreur Open-Meteo")
+        data = r.json()
+        if "hourly" in data and "time" in data["hourly"]:
+            idx = -1
+            result = {k: v[idx] for k, v in data["hourly"].items()}
+            return result
+        return data
 
-@app.get("/history", response_model=List[WeatherHistory], tags=["History"])
-async def get_weather_history(request: Request, station: str = Query(...), date: Optional[str] = Query(None)):
+@app.get("/history", tags=["History"])
+async def get_history_weather(request: Request, station: Optional[str] = None, lat: Optional[float] = None, lon: Optional[float] = None, date: Optional[str] = None):
     await verify_rapidapi_proxy(request)
-    results = [h for h in HISTORY if h.station == station]
-    if date:
-        results = [h for h in results if h.date == date]
-    return results
+    if station:
+        coords = station_coords.get(station)
+        if not coords:
+            raise HTTPException(status_code=404, detail="Station inconnue")
+        lat, lon = coords
+    if lat is None or lon is None or date is None:
+        raise HTTPException(status_code=400, detail="Paramètres manquants (station/lat/lon/date)")
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "start_date": date,
+        "end_date": date,
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max",
+        "timezone": "auto"
+    }
+    async with httpx.AsyncClient() as client:
+        r = await client.get(OPEN_METEO_BASE, params=params)
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail="Erreur Open-Meteo")
+        return r.json()
 
-@app.get("/forecast", response_model=List[WeatherForecast], tags=["Forecast"])
-async def get_weather_forecast(request: Request, station: str = Query(...)):
+@app.get("/forecast", tags=["Forecast"])
+async def get_forecast_weather(request: Request, station: Optional[str] = None, lat: Optional[float] = None, lon: Optional[float] = None, days: int = 7):
     await verify_rapidapi_proxy(request)
-    return [f for f in FORECAST if f.station == station]
+    if station:
+        coords = station_coords.get(station)
+        if not coords:
+            raise HTTPException(status_code=404, detail="Station inconnue")
+        lat, lon = coords
+    if lat is None or lon is None:
+        raise HTTPException(status_code=400, detail="Paramètres manquants (station ou lat/lon)")
+    if days is None:
+        days = 7
+    from datetime import date, timedelta
+    start = date.today().isoformat()
+    end = (date.today() + timedelta(days=days)).isoformat()
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "start_date": start,
+        "end_date": end,
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max",
+        "timezone": "auto"
+    }
+    async with httpx.AsyncClient() as client:
+        r = await client.get(OPEN_METEO_BASE, params=params)
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail="Erreur Open-Meteo")
+        return r.json()
 
 @app.get("/stations", response_model=List[Station], tags=["Stations"])
 async def get_stations(request: Request, country: Optional[str] = Query(None)):
     await verify_rapidapi_proxy(request)
     if country:
-        return [s for s in STATIONS if s.country == country]
+        return [s for s in STATIONS if s["country"] == country]
     return STATIONS
 
 @app.get("/ping", tags=["Current"])
@@ -224,7 +264,7 @@ async def get_station_climate_data(request: Request, station: str = Query(...)):
 @app.get("/station/meta", tags=["Station Data"])
 async def get_station_meta_data(request: Request, station: str = Query(...)):
     await verify_rapidapi_proxy(request)
-    s = next((s for s in STATIONS if s.id == station), None)
+    s = next((s for s in STATIONS if s["id"] == station), None)
     if not s:
         raise HTTPException(status_code=404, detail="Station inconnue")
     return s
