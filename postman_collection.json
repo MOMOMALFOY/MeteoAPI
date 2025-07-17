@@ -1,0 +1,126 @@
+{
+  "info": {
+    "_postman_id": "b1e1e1e1-1111-2222-3333-444455556666",
+    "name": "MeteoAPI",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET /current",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/current?station=FRPAR&lat=48.8566&lon=2.3522",
+          "host": ["{{base_url}}"],
+          "path": ["current"],
+          "query": [
+            {"key": "station", "value": "FRPAR"},
+            {"key": "lat", "value": "48.8566"},
+            {"key": "lon", "value": "2.3522"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /history",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/history?station=FRPAR&lat=48.8566&lon=2.3522&date=2024-06-09",
+          "host": ["{{base_url}}"],
+          "path": ["history"],
+          "query": [
+            {"key": "station", "value": "FRPAR"},
+            {"key": "lat", "value": "48.8566"},
+            {"key": "lon", "value": "2.3522"},
+            {"key": "date", "value": "2024-06-09"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /forecast",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/forecast?station=FRPAR&lat=48.8566&lon=2.3522&days=7",
+          "host": ["{{base_url}}"],
+          "path": ["forecast"],
+          "query": [
+            {"key": "station", "value": "FRPAR"},
+            {"key": "lat", "value": "48.8566"},
+            {"key": "lon", "value": "2.3522"},
+            {"key": "days", "value": "7"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /stations",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/stations?country=FR",
+          "host": ["{{base_url}}"],
+          "path": ["stations"],
+          "query": [
+            {"key": "country", "value": "FR"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /station/meta",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/station/meta?station=FRPAR",
+          "host": ["{{base_url}}"],
+          "path": ["station", "meta"],
+          "query": [
+            {"key": "station", "value": "FRPAR"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /station/nearby",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/station/nearby?lat=48.8566&lon=2.3522",
+          "host": ["{{base_url}}"],
+          "path": ["station", "nearby"],
+          "query": [
+            {"key": "lat", "value": "48.8566"},
+            {"key": "lon", "value": "2.3522"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /ping",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/ping",
+          "host": ["{{base_url}}"],
+          "path": ["ping"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    }
+  ]
+} 

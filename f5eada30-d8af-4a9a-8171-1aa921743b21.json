@@ -1,0 +1,12 @@
+[
+  {
+    "critical": true,
+    "text": "bad indentation of a mapping entry (19:44)\n\n 16 |  ... e: station\n 17 |  ... ema:\n 18 |  ... ype: string\n 19 |  ... cription: ID de la station (ex: FRPAR, USNYC)\n-----------------------------------------^\n 20 |  ...  query\n 21 |  ... e: lat",
+    "info": {
+      "column": 43,
+      "line": 18,
+      "position": 738
+    },
+    "type": "ERR_BAD_YAML_UPLOADED"
+  }
+]

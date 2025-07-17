@@ -3,6 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 import httpx
 from stations import STATIONS
+import math
 
 app = FastAPI(
     title="MeteoAPI",
@@ -269,11 +270,26 @@ async def get_station_meta_data(request: Request, station: str = Query(...)):
         raise HTTPException(status_code=404, detail="Station inconnue")
     return s
 
-@app.get("/station/nearby", tags=["Station Data"])
-async def get_nearby_stations(request: Request, lat: float = Query(...), lon: float = Query(...)):
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371  # Rayon de la Terre en km
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    return R * c
+
+@app.get("/station/nearby", tags=["Stations"])
+async def get_station_nearby(request: Request, lat: Optional[float] = None, lon: Optional[float] = None):
     await verify_rapidapi_proxy(request)
-    # Retourne les stations connues les plus proches (ici, toutes)
-    return STATIONS
+    if lat is None or lon is None:
+        raise HTTPException(status_code=400, detail="lat and lon are required")
+    stations_with_dist = [
+        (s, haversine(lat, lon, s["lat"], s["lon"])) for s in STATIONS
+    ]
+    stations_with_dist.sort(key=lambda x: x[1])
+    return [s for s, d in stations_with_dist[:5]]
 
 # Point Data
 OPEN_METEO_BASE = "https://api.open-meteo.com/v1/forecast"
